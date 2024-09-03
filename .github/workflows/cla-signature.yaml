@@ -16,8 +16,8 @@ jobs:
       - name: Adding user to contributors
         run: |
           echo Signature by ${{ github.event.issue.user.login }}
-          git clone https://github.com/GT4SD/gt4sd-trainer-hf-pl.git --branch main --single-branch gt4sd-trainer-hf-pl-main
-          cd gt4sd-trainer-hf-pl-main
+          git clone https://github.com/GT4SD/enzeptional.git --branch main --single-branch enzeptional-main
+          cd enzeptional-main
           previous_commit_hash=$(git rev-parse HEAD | cut -c 1-8)
           echo $(jq '.contributors |= (. + ["${{ github.event.issue.user.login }}"] | unique)' .clabot) > .clabot
           echo Updated .clabot:
@@ -33,7 +33,7 @@ jobs:
         uses: ad-m/github-push-action@master
         with:
           branch: main
-          directory: gt4sd-trainer-hf-pl-main
+          directory: enzeptional-main
           github_token: ${{ secrets.GH_TOKEN }}
       - name: Mark signature in the issue
         uses: andymckay/labeler@e6c4322d0397f3240f0e7e30a33b5c5df2d39e90

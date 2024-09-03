@@ -1,7 +1,7 @@
 #
 # MIT License
 #
-# Copyright (c) 2023 GT4SD team
+# Copyright (c) 2024 GT4SD team
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -21,3 +21,18 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
+
+__version__ = "1.0.0"
+
+"""Enzeptional - Enzyme Optimization for Biocatalysis.
+
+Module for enzyme optimization.
+"""
+import transformers
+
+from .core import EnzymeOptimizer, SequenceMutator  # noqa: F401
+from .processing import (  # noqa: F401
+    HuggingFaceEmbedder,
+    HuggingFaceModelLoader,
+    HuggingFaceTokenizerLoader,
+)

@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.10", "3.11"]
 
     steps:
       - uses: actions/checkout@v3
@@ -25,25 +25,21 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install flake8 pytest black isort mypy
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Install gt4sd-trainer-lm from source
+      - name: Install enzeptional from source
         run: |
           pip install .
       - name: Check black
         run: |
-          python -m black src/gt4sd_trainer --check --diff --color
+          python -m black src/enzeptional --check --diff --color
       - name: Check isort
         run: |
-          python -m isort src/gt4sd_trainer --check-only
+          python -m isort src/enzeptional --check-only
       - name: Check flake8
         run: |
-          python -m flake8 --disable-noqa --per-file-ignores="__init__.py:F401" src/gt4sd_trainer
+          python -m flake8 --disable-noqa --per-file-ignores="__init__.py:F401" src/enzeptional
       - name: Check mypy
         run: |
-          python -m mypy src/gt4sd_trainer
+          python -m mypy src/enzeptional
       - name: Run pytests
         run: |
           python -m pytest -sv
-      - name: Test entry-points
-        run: |
-          gt4sd-trainer-hf-pl --help
-          gt4sd-pl-to-hf --help
