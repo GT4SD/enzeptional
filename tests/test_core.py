@@ -29,8 +29,6 @@ from enzeptional import (
     EnzymeOptimizer,
     SequenceMutator,
     SequenceScorer,
-)
-from enzeptional import (
     CrossoverGenerator,
     HuggingFaceEmbedder,
     HuggingFaceModelLoader,

@@ -358,7 +358,6 @@ class SequenceScorer:
             use_xgboost: Whether to use XGBoost as the scoring model (default is False).
             scaler_filepath: Path to a scaler for feature normalization (optional).
         """
-        self.prot
         self.protein_model = protein_model
         self.scorer = load(scorer_filepath)
         self.use_xgboost = use_xgboost

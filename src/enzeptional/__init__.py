@@ -38,4 +38,8 @@ from .processing import (  # noqa: F401
     HuggingFaceModelLoader,
     HuggingFaceTokenizerLoader,
     SelectionGenerator,
+    mutate_sequence_with_variant,
+    round_up,
+    sanitize_intervals,
+    sanitize_intervals_with_padding,
 )
