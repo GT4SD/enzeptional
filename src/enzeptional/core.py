@@ -246,7 +246,7 @@ class MutationFactory:
             ValueError: If the mutation type is unsupported.
 
         Returns:
-            An instance of the specified mutation strategy
+            An instance of the specified mutation strategy.
         """
         if mutation_config["type"] == "language-modeling":
             mutation_model = MutationModelManager().load_model(
@@ -337,6 +337,11 @@ class SequenceMutator:
 
 
 class SequenceScorer:
+    """
+    Scores protein sequences using a pre-trained embedding model and a trained machine learning model.
+    Supports individual and batch scoring, with optional scaling and XGBoost support.
+    """
+
     def __init__(
         self,
         protein_model: HuggingFaceEmbedder,
@@ -344,6 +349,16 @@ class SequenceScorer:
         use_xgboost: bool = False,
         scaler_filepath: Optional[str] = None,
     ):
+        """
+        Initializes the SequenceScorer with the given embedding model, scorer model, and optional scaler.
+
+        Args:
+            protein_model: Model used for generating protein embeddings.
+            scorer_filepath: Path to the trained model for scoring.
+            use_xgboost: Whether to use XGBoost as the scoring model (default is False).
+            scaler_filepath: Path to a scaler for feature normalization (optional).
+        """
+        self.prot
         self.protein_model = protein_model
         self.scorer = load(scorer_filepath)
         self.use_xgboost = use_xgboost
@@ -356,6 +371,19 @@ class SequenceScorer:
         product_embedding: np.ndarray,
         concat_order: List[str],
     ) -> Dict[str, Any]:
+        """
+        Scores a single protein sequence by embedding it, concatenating it with substrate and product embeddings,
+        and applying the scorer model.
+
+        Args:
+            sequence: The protein sequence to score.
+            substrate_embedding: The embedding of the substrate.
+            product_embedding: The embedding of the product.
+            concat_order: The order in which to concatenate the embeddings.
+
+        Returns:
+            A dictionary containing the sequence and its computed score.
+        """
         sequence_embedding = self.protein_model.embed([sequence])[0]
         embeddings = [sequence_embedding, substrate_embedding, product_embedding]
         ordered_embeddings = [
@@ -379,6 +407,19 @@ class SequenceScorer:
         product_embedding: np.ndarray,
         concat_order: List[str],
     ) -> List[Dict[str, float]]:
+        """
+        Scores a batch of protein sequences by embedding each one, concatenating it with substrate and product embeddings,
+        and applying the scorer model.
+
+        Args:
+            sequences: List of protein sequences to score.
+            substrate_embedding: The embedding of the substrate.
+            product_embedding: The embedding of the product.
+            concat_order: The order in which to concatenate the embeddings.
+
+        Returns:
+            A list of dictionaries containing the sequences and their computed scores.
+        """
         sequence_embeddings = self.protein_model.embed(sequences)
         output = []
         for position, sequence_embedding in enumerate(sequence_embeddings):
