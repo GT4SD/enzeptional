@@ -25,20 +25,10 @@
 import torch
 
 from enzeptional.processing import (
-    ModelCache,
     reconstruct_sequence_with_mutation_range,
     sanitize_intervals,
     sanitize_intervals_with_padding,
 )
-
-
-def test_add_and_get_model():
-    model_cache = ModelCache()
-    test_model = torch.nn.Module()
-    model_cache.add("test_model", test_model)
-    retrieved_model = model_cache.get("test_model")
-    assert test_model == retrieved_model
-
 
 class TestUtilityFunctions:
 

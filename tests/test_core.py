@@ -24,14 +24,13 @@
 import warnings
 
 import importlib_resources
-import torch
 
-from enzeptional.core import (
+from enzeptional import (
     EnzymeOptimizer,
     SequenceMutator,
     SequenceScorer,
 )
-from enzeptional.processing import (
+from enzeptional import (
     CrossoverGenerator,
     HuggingFaceEmbedder,
     HuggingFaceModelLoader,
@@ -64,7 +63,7 @@ def test_optimize():
         model_path=language_model_path,
         tokenizer_path=tokenizer_path,
         cache_dir=None,
-        device="cuda" if torch.cuda.is_available() else "cpu",
+        device="cpu",
     )
 
     chem_model = HuggingFaceEmbedder(
@@ -73,7 +72,7 @@ def test_optimize():
         model_path=chem_model_path,
         tokenizer_path=chem_tokenizer_path,
         cache_dir=None,
-        device="cuda" if torch.cuda.is_available() else "cpu",
+        device="cpu",
     )
 
     mutation_config = {

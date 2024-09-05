@@ -28,11 +28,14 @@ __version__ = "1.0.0"
 
 Module for enzyme optimization.
 """
-import transformers
+import torch  # noqa: F401
+import xgboost  # noqa: F401
 
-from .core import EnzymeOptimizer, SequenceMutator  # noqa: F401
+from .core import EnzymeOptimizer, SequenceMutator, SequenceScorer  # noqa: F401
 from .processing import (  # noqa: F401
+    CrossoverGenerator,
     HuggingFaceEmbedder,
     HuggingFaceModelLoader,
     HuggingFaceTokenizerLoader,
+    SelectionGenerator,
 )

@@ -28,59 +28,24 @@ import math
 import random
 from abc import ABC, abstractmethod
 from itertools import product as iter_product
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
 from tape.datasets import pad_sequences
 from tape.registry import registry
 from tape.tokenizers import TAPETokenizer
-from transformers import AutoModel, AutoTokenizer, T5Tokenizer
+from transformers import AutoModel, AutoTokenizer, EsmForMaskedLM, T5Tokenizer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-class ModelCache:
-    """Caches models to avoid reloading them multiple times."""
-
-    def __init__(self):
-        """
-        Initializes the model cache as an empty dictionary.
-        """
-        self.cache = {}
-
-    def get(self, key):
-        """
-        Retrieves a model from the cache.
-
-        Args:
-            key: The key associated with the model in the cache.
-
-        Returns:
-            The model associated with the given key, or None if the key is not found in the cache.
-        """
-        return self.cache.get(key)
-
-    def add(self, key, model):
-        """
-        Adds a model to the cache.
-
-        Args:
-            key: The key to associate with the model in the cache.
-            model: The model to be cached.
-        """
-        self.cache[key] = model
-
-
-ENZEPTIONAL_MODEL_CACHE = ModelCache()
 
 
 class ModelLoader(ABC):
     """Abstract base class for loading models."""
 
     @abstractmethod
-    def load_model(self, model_path, cache_key, cache_dir):
+    def load_model(self, model_path: str, cache_key: str, cache_dir: Optional[str]):
         """
         Loads a model given the path and cache key.
 
@@ -98,7 +63,7 @@ class ModelLoader(ABC):
 class HuggingFaceModelLoader(ModelLoader):
     """Loads and caches Hugging Face models."""
 
-    def load_model(self, model_path, cache_key, cache_dir):
+    def load_model(self, model_path: str, cache_key: str, cache_dir: Optional[str]):
         """
         Loads a Hugging Face model from the specified path, caching it for future use.
 
@@ -110,17 +75,14 @@ class HuggingFaceModelLoader(ModelLoader):
         Returns:
             The loaded Hugging Face model.
         """
-        model = ENZEPTIONAL_MODEL_CACHE.get(cache_key)
-        if not model:
-            model = AutoModel.from_pretrained(model_path, cache_dir=cache_dir).eval()
-            ENZEPTIONAL_MODEL_CACHE.add(cache_key, model)
+        model = AutoModel.from_pretrained(model_path, cache_dir=cache_dir).eval()
         return model
 
 
 class TapeModelLoader(ModelLoader):
     """Loads and caches TAPE models."""
 
-    def load_model(self, model_path, cache_key, cache_dir):
+    def load_model(self, model_path: str, cache_key: str, cache_dir: Optional[str]):
         """
         Loads a TAPE model from the specified path, caching it for future use.
 
@@ -132,12 +94,7 @@ class TapeModelLoader(ModelLoader):
         Returns:
             The loaded TAPE model.
         """
-        model = ENZEPTIONAL_MODEL_CACHE.get(cache_key)
-        if not model:
-            model = registry.get_task_model(
-                model_path, "embed", load_dir=model_path
-            ).eval()
-            ENZEPTIONAL_MODEL_CACHE.add(cache_key, model)
+        model = registry.get_task_model(model_path, "embed", load_dir=model_path).eval()
         return model
 
 
@@ -145,7 +102,7 @@ class TokenizerLoader(ABC):
     """Abstract base class for loading tokenizers."""
 
     @abstractmethod
-    def load_tokenizer(self, tokenizer_path):
+    def load_tokenizer(self, tokenizer_path: str):
         """
         Loads a tokenizer given the path.
 
@@ -161,7 +118,7 @@ class TokenizerLoader(ABC):
 class HuggingFaceTokenizerLoader(TokenizerLoader):
     """Loads and caches Hugging Face tokenizers."""
 
-    def load_tokenizer(self, tokenizer_path):
+    def load_tokenizer(self, tokenizer_path: str):
         """
         Loads a Hugging Face tokenizer from the specified path, caching it for future use.
 
@@ -171,20 +128,22 @@ class HuggingFaceTokenizerLoader(TokenizerLoader):
         Returns:
             The loaded Hugging Face tokenizer.
         """
-        tokenizer = ENZEPTIONAL_MODEL_CACHE.get(f"tokenizer_{tokenizer_path}")
-        if not tokenizer:
-            try:
-                tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
-            except Exception:
-                tokenizer = T5Tokenizer.from_pretrained(tokenizer_path)
-            ENZEPTIONAL_MODEL_CACHE.add(f"tokenizer_{tokenizer_path}", tokenizer)
+
+        try:
+            tokenizer = AutoTokenizer.from_pretrained(
+                tokenizer_path, clean_up_tokenization_spaces=True
+            )
+        except Exception:
+            tokenizer = T5Tokenizer.from_pretrained(
+                tokenizer_path, clean_up_tokenization_spaces=True
+            )
         return tokenizer
 
 
 class TapeTokenizerLoader(TokenizerLoader):
     """Loads TAPE tokenizers."""
 
-    def load_tokenizer(self, tokenizer_path):
+    def load_tokenizer(self, tokenizer_path: str):
         """
         Loads a TAPE tokenizer.
 
@@ -201,7 +160,7 @@ class EmbeddingModel(ABC):
     """Abstract base class for embedding models."""
 
     @abstractmethod
-    def embed(self, samples):
+    def embed(self, samples: List[str]):
         """
         Embeds a list of protein sequences.
 
@@ -246,7 +205,7 @@ class HuggingFaceEmbedder(EmbeddingModel):
         self.tokenizer = tokenizer_loader.load_tokenizer(tokenizer_path)
         self.device = device
 
-    def embed(self, samples):
+    def embed(self, samples: List[str]):
         """
         Embeds protein sequences using a Hugging Face model.
 
@@ -294,7 +253,7 @@ class TapeEmbedder(EmbeddingModel):
         self.tokenizer = tokenizer_loader.load_tokenizer("")
         self.device = device
 
-    def embed(self, samples):
+    def embed(self, samples: List[str]):
         """
         Embeds protein sequences using a TAPE model.
 
@@ -348,8 +307,6 @@ class HuggingFaceUnmasker(UnmaskingModel):
 
     def __init__(
         self,
-        model_loader,
-        tokenizer_loader,
         model_path,
         tokenizer_path,
         cache_dir,
@@ -359,8 +316,6 @@ class HuggingFaceUnmasker(UnmaskingModel):
         Initializes the Hugging Face unmasker with the model and tokenizer loaders.
 
         Args:
-            model_loader: The loader responsible for loading the Hugging Face model.
-            tokenizer_loader: The loader responsible for loading the Hugging Face tokenizer.
             model_path: The path to the Hugging Face model.
             tokenizer_path: The path to the Hugging Face tokenizer.
             cache_dir: Optional directory where the model is cached.
@@ -369,10 +324,15 @@ class HuggingFaceUnmasker(UnmaskingModel):
         Returns:
             None
         """
-        self.model = model_loader.load_model(
-            model_path, f"unmasking_{model_path}", cache_dir
-        ).to(device)
-        self.tokenizer = tokenizer_loader.load_tokenizer(tokenizer_path)
+        try:
+            self.model = EsmForMaskedLM.from_pretrained(
+                model_path, cache_dir=cache_dir
+            ).to(device)
+        except Exception as e:
+            logger.warning(
+                f"Failed to load EsmForMaskedLM: {e}. Falling back to default model loader."
+            )
+        self.tokenizer = HuggingFaceTokenizerLoader().load_tokenizer(tokenizer_path)
         self.device = device
 
     def unmask(self, sequence, top_k=2):
@@ -387,32 +347,73 @@ class HuggingFaceUnmasker(UnmaskingModel):
             A list of the top-k predicted sequences with the masked tokens replaced.
         """
         inputs = self.tokenizer(
-            sequence, return_tensors="pt", add_special_tokens=True, padding=True
-        ).to(self.device)
+            sequence,
+            return_tensors="pt",
+            add_special_tokens=True,
+            padding=True,
+        )
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
         mask_token_index = torch.where(
             inputs["input_ids"] == self.tokenizer.mask_token_id
         )[1]
+
         with torch.no_grad():
-            logits = self.model(inputs["input_ids"]).logits
+            outputs = self.model(**inputs)
+
+        if "logits" in outputs:
+            logits = outputs.logits
+        else:
+            raise KeyError("Logits not available in the model's output.")
+
         mask_token_logits = logits[0, mask_token_index, :]
-        top_tokens = [
-            torch.topk(mask_token_logits, top_k, dim=1).indices[i].tolist()
-            for i in range(len(mask_token_index))
-        ]
+
+        top_tokens: List[List[str]] = []
+        for i in range(len(mask_token_index)):
+            top_n_tokens = torch.topk(mask_token_logits[i], top_k).indices.tolist()
+            top_tokens.append(
+                [self.tokenizer.decode([token]) for token in top_n_tokens]
+            )
+
+        return self._generate_mutated_sequences(
+            sequence, mask_token_index.cpu().numpy(), top_tokens, top_k
+        )
+
+    def _generate_mutated_sequences(
+        self,
+        sequence: str,
+        mask_token_index: np.ndarray,
+        top_tokens: List[List[str]],
+        top_k: int,
+    ) -> List[str]:
+        """
+        Generates mutated sequences based on top-k predictions for each masked token.
+
+        Args:
+            sequence: The input sequence with masked tokens.
+            mask_token_index: Indices of the masked tokens.
+            top_tokens: Top-k predictions for each masked token.
+            top_k: Number of top predictions.
+
+        Returns:
+            List of top-k predicted sequences.
+        """
         mutated_sequences = []
         tmp_top_tokens = [tuple(tokens) for tokens in top_tokens]
+
         if len(set(tmp_top_tokens)) == 1:
             for i in range(top_k):
                 temp_sequence = sequence.split(" ")
-                for mask_index in mask_token_index.cpu().numpy():
+                for mask_index in mask_token_index:
                     temp_sequence[mask_index - 1] = tmp_top_tokens[0][i]
                 mutated_sequences.append("".join(temp_sequence))
         else:
             for combination in list(iter_product(*tmp_top_tokens)):
                 temp_sequence = sequence.split(" ")
-                for i, mask_index in enumerate(mask_token_index.cpu().numpy()):
+                for i, mask_index in enumerate(mask_token_index):
                     temp_sequence[mask_index - 1] = combination[i]
                 mutated_sequences.append("".join(temp_sequence))
+
         return mutated_sequences
 
 
@@ -420,8 +421,8 @@ def mutate_sequence_with_variant(sequence: str, variant: str) -> str:
     """Applies a specified variant mutation to an amino acid sequence.
 
     Args:
-        sequence (str): The original amino acid sequence.
-        variant (str): The variant to apply, formatted as a string.
+        sequence: The original amino acid sequence.
+        variant: The variant to apply, formatted as a string.
 
     Returns:
         str: The mutated amino acid sequence.
@@ -437,11 +438,11 @@ def sanitize_intervals(intervals: List[Tuple[int, int]]) -> List[Tuple[int, int]
     """Merges overlapping intervals into a single interval.
 
     Args:
-        intervals (List[Tuple[int, int]]): A list of
+        intervals: A list of
         start and end points of intervals.
 
     Returns:
-        List[Tuple[int, int]]: A list of merged intervals.
+        A list of merged intervals.
     """
     intervals.sort()
     merged: List[Tuple[int, int]] = []
@@ -457,10 +458,10 @@ def round_up(number: float) -> int:
     """Rounds up a floating-point number to the nearest integer.
 
     Args:
-        number (float): The number to round up.
+        number The number to round up.
 
     Returns:
-        int: The rounded-up integer.
+        The rounded-up integer.
     """
     return math.ceil(number)
 
@@ -471,12 +472,12 @@ def sanitize_intervals_with_padding(
     """Pads and sanitizes intervals within a given range.
 
     Args:
-        intervals (List[Tuple[int, int]]): A list of intervals.
-        pad_value (int): The value to pad intervals with.
-        max_value (int): The maximum value for the range of intervals.
+        intervals: A list of intervals.
+        pad_value: The value to pad intervals with.
+        max_value: The maximum value for the range of intervals.
 
     Returns:
-        List[Tuple[int, int]]: A list of padded and sanitized intervals.
+        A list of padded and sanitized intervals.
     """
 
     def pad_interval(
@@ -485,12 +486,12 @@ def sanitize_intervals_with_padding(
         """Pads an individual interval within the constraints of a maximum value.
 
         Args:
-            interval (Tuple[int, int]): The interval to pad.
-            pad (int): The padding value.
-            max_val (int): The maximum value for the interval.
+            interval: The interval to pad.
+            pad: The padding value.
+            max_val: The maximum value for the interval.
 
         Returns:
-            Tuple[int, int]: The padded interval.
+            The padded interval.
         """
         start, end = interval
         interval_length = end - start
@@ -518,13 +519,13 @@ def reconstruct_sequence_with_mutation_range(
     range at specific intervals.
 
     Args:
-        sequence (str): The original sequence.
-        mutated_sequence_range (str): The range of the sequence to be mutated.
-        intervals (List[Tuple[int, int]]): The intervals where
+        sequence: The original sequence.
+        mutated_sequence_range: The range of the sequence to be mutated.
+        intervals: The intervals where
         mutations are applied.
 
     Returns:
-        str: The reconstructed sequence with mutations.
+        The reconstructed sequence with mutations.
     """
     mutated_sequence = list(sequence)
     range_index = 0
@@ -550,13 +551,13 @@ class SelectionGenerator:
         """Selects a subset of sequences from a pool based on their scores.
 
         Args:
-            pool_of_sequences (List[Dict[str, Any]]): A list of
+            pool_of_sequences: A list of
             dictionaries, each containing a sequence and its score.
-            k (float): A fraction representing the proportion
+            k A fraction representing the proportion
             of top sequences to select. Defaults to 0.8.
 
         Returns:
-            List[Any]: A list of the top k sequences based on scores.
+            A list of the top k sequences based on scores.
         """
         n_samples_to_select = int(len(pool_of_sequences) * k)
         return list(sorted(pool_of_sequences, key=lambda d: d["score"], reverse=True))[
@@ -574,7 +575,7 @@ class CrossoverGenerator:
         threshold probability.
 
         Args:
-            threshold_probability (float, optional): The probability
+            threshold_probability: The probability
             threshold used in uniform crossover. Defaults to 0.5.
         """
         self.threshold_probability = threshold_probability
@@ -583,11 +584,11 @@ class CrossoverGenerator:
         """Performs a single point crossover between two sequences.
 
         Args:
-            a_sequence (str): The first sequence for crossover.
-            another_sequence (str): The second sequence for crossover.
+            a_sequence: The first sequence for crossover.
+            another_sequence: The second sequence for crossover.
 
         Returns:
-            Tuple[str, str]: A tuple of two new sequences resulting
+            A tuple of two new sequences resulting
             from the crossover.
         """
         random_point = random.randint(1, len(a_sequence) - 2)
@@ -602,11 +603,11 @@ class CrossoverGenerator:
         """Performs a uniform crossover between two sequences.
 
         Args:
-            a_sequence (str): The first sequence for crossover.
-            another_sequence (str): The second sequence for crossover.
+            a_sequence: The first sequence for crossover.
+            another_sequence: The second sequence for crossover.
 
         Returns:
-            Tuple[str, str]: A tuple of two new sequences resulting
+            A tuple of two new sequences resulting
             from the crossover.
         """
         return (

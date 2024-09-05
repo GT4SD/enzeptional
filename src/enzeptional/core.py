@@ -36,13 +36,8 @@ from joblib import load
 from .processing import (
     CrossoverGenerator,
     HuggingFaceEmbedder,
-    HuggingFaceModelLoader,
-    HuggingFaceTokenizerLoader,
-    ModelCache,
+    HuggingFaceUnmasker,
     SelectionGenerator,
-    TapeEmbedder,
-    TapeModelLoader,
-    TapeTokenizerLoader,
     sanitize_intervals,
     sanitize_intervals_with_padding,
 )
@@ -53,17 +48,14 @@ logger = logging.getLogger(__name__)
 
 class MutationModelManager:
     """
-    Manages and caches mutation models for efficient reuse.
+    Manages mutation models for efficient reuse.
     """
-
-    def __init__(self):
-        self.model_cache = ModelCache()
 
     def load_model(
         self, embedding_model_path, tokenizer_path, is_tape_model=False, **kwargs
     ):
         """
-        Loads or retrieves a model from the cache based on the given paths.
+        Loads a model from the given paths.
 
         Args:
             embedding_model_path: Path to the embedding model.
@@ -74,28 +66,12 @@ class MutationModelManager:
         Returns:
             An instance of the loaded model.
         """
-        model_key = (embedding_model_path, tokenizer_path, is_tape_model)
-        model = self.model_cache.get(model_key)
-        if model:
-            return model
-
-        if is_tape_model:
-            model = TapeEmbedder(
-                model_loader=TapeModelLoader(),
-                tokenizer_loader=TapeTokenizerLoader(),
-                model_path=embedding_model_path,
-                device=kwargs.get("device", "cpu"),
-            )
-        else:
-            model = HuggingFaceEmbedder(
-                model_loader=HuggingFaceModelLoader(),
-                tokenizer_loader=HuggingFaceTokenizerLoader(),
-                model_path=embedding_model_path,
-                tokenizer_path=tokenizer_path,
-                cache_dir=kwargs.get("cache_dir", None),
-                device=kwargs.get("device", "cpu"),
-            )
-        self.model_cache.add(model_key, model)
+        model = HuggingFaceUnmasker(
+            model_path=embedding_model_path,
+            tokenizer_path=tokenizer_path,
+            cache_dir=kwargs.get("cache_dir", None),
+            device=kwargs.get("device", "cpu"),
+        )
         return model
 
 
