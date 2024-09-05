@@ -39,10 +39,10 @@ from enzeptional import (
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
 scorer_filepath = (
-    importlib_resources.files('enzeptional.resources.kcat_sample_model') / 'model.pkl'
+    importlib_resources.files('enzeptional') / 'resources/kcat_sample_model/model.pkl'
 )
 scaler_filepath = (
-    importlib_resources.files('enzeptional.resources.kcat_sample_model') / 'scaler.pkl'
+    importlib_resources.files('enzeptional') / 'resources/kcat_sample_model/scaler.pkl'
 )
 
 
