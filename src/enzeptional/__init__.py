@@ -28,7 +28,6 @@ __version__ = "1.0.0"
 
 Module for enzyme optimization.
 """
-import torch  # noqa: F401
 import xgboost  # noqa: F401
 
 from .core import EnzymeOptimizer, SequenceMutator, SequenceScorer  # noqa: F401
@@ -43,3 +42,5 @@ from .processing import (  # noqa: F401
     sanitize_intervals,
     sanitize_intervals_with_padding,
 )
+
+import torch  # noqa: F401

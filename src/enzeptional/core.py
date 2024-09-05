@@ -21,17 +21,17 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
+from abc import ABC, abstractmethod
+from itertools import product as iter_product
 import logging
 import random
 import time
-from abc import ABC, abstractmethod
-from itertools import product as iter_product
 from typing import Any, Dict, List, Optional, Tuple
 
+from joblib import load
 import numpy as np
 import pandas as pd
 import xgboost as xgb
-from joblib import load
 
 from .processing import (
     CrossoverGenerator,

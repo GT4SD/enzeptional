@@ -23,19 +23,20 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 #
+from abc import ABC, abstractmethod
+from itertools import product as iter_product
 import logging
 import math
 import random
-from abc import ABC, abstractmethod
-from itertools import product as iter_product
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-import torch
 from tape.datasets import pad_sequences
 from tape.registry import registry
 from tape.tokenizers import TAPETokenizer
 from transformers import AutoModel, AutoTokenizer, EsmForMaskedLM, T5Tokenizer
+
+import torch
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
