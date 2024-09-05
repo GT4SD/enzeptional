@@ -46,7 +46,7 @@ scaler_filepath = (
 )
 
 
-def test_optimize():
+def main():
     language_model_path = "facebook/esm2_t33_650M_UR50D"
     tokenizer_path = "facebook/esm2_t33_650M_UR50D"
     chem_model_path = "seyonec/ChemBERTa-zinc-base-v1"
@@ -133,4 +133,7 @@ def test_optimize():
         time_budget=time_budget,
     )
 
-    assert len(optimized_sequences) > 0
+    return optimized_sequences
+
+if __name__ == "__main__":
+    main()
