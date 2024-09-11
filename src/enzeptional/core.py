@@ -42,8 +42,8 @@ from .processing import (
     sanitize_intervals_with_padding,
 )
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
 
 
 class MutationModelManager:

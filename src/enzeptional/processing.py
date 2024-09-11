@@ -38,8 +38,13 @@ from transformers import AutoModel, AutoTokenizer, EsmForMaskedLM, T5Tokenizer
 
 import torch
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logger.addHandler(logging.NullHandler())
+
+
+def get_device() -> str:
+    """Returns 'cuda' if available, otherwise 'cpu'."""
+    return "cuda" if torch.cuda.is_available() else "cpu"
 
 
 class ModelLoader(ABC):
@@ -181,10 +186,10 @@ class HuggingFaceEmbedder(EmbeddingModel):
         self,
         model_loader,
         tokenizer_loader,
-        model_path,
-        tokenizer_path,
-        cache_dir,
-        device,
+        model_path: str,
+        tokenizer_path: str,
+        cache_dir: Optional[str],
+        device: Optional[str] = get_device(),
     ):
         """
         Initializes the Hugging Face embedder with the model and tokenizer loaders.
@@ -200,11 +205,11 @@ class HuggingFaceEmbedder(EmbeddingModel):
         Returns:
             None
         """
+        self.device = device
         self.model = model_loader.load_model(
             model_path, f"embedding_{model_path}", cache_dir
-        ).to(device)
+        ).to(self.device)
         self.tokenizer = tokenizer_loader.load_tokenizer(tokenizer_path)
-        self.device = device
 
     def embed(self, samples: List[str]):
         """
@@ -235,7 +240,13 @@ class HuggingFaceEmbedder(EmbeddingModel):
 class TapeEmbedder(EmbeddingModel):
     """Embeds protein sequences using a TAPE model."""
 
-    def __init__(self, model_loader, tokenizer_loader, model_path, device):
+    def __init__(
+        self,
+        model_loader,
+        tokenizer_loader,
+        model_path: str,
+        device: Optional[str] = get_device(),
+    ):
         """
         Initializes the TAPE embedder with the model and tokenizer loaders.
 
@@ -248,11 +259,11 @@ class TapeEmbedder(EmbeddingModel):
         Returns:
             None
         """
+        self.device = device
         self.model = model_loader.load_model(
             model_path, f"embedding_{model_path}", None
         ).to(device)
         self.tokenizer = tokenizer_loader.load_tokenizer("")
-        self.device = device
 
     def embed(self, samples: List[str]):
         """
@@ -308,10 +319,10 @@ class HuggingFaceUnmasker(UnmaskingModel):
 
     def __init__(
         self,
-        model_path,
-        tokenizer_path,
-        cache_dir,
-        device,
+        model_path: str,
+        tokenizer_path: str,
+        cache_dir: Optional[str],
+        device: Optional[str] = get_device(),
     ):
         """
         Initializes the Hugging Face unmasker with the model and tokenizer loaders.
@@ -325,16 +336,16 @@ class HuggingFaceUnmasker(UnmaskingModel):
         Returns:
             None
         """
+        self.device = device
         try:
             self.model = EsmForMaskedLM.from_pretrained(
                 model_path, cache_dir=cache_dir
-            ).to(device)
+            ).to(self.device)
         except Exception as e:
             logger.warning(
                 f"Failed to load EsmForMaskedLM: {e}. Falling back to default model loader."
             )
         self.tokenizer = HuggingFaceTokenizerLoader().load_tokenizer(tokenizer_path)
-        self.device = device
 
     def unmask(self, sequence, top_k=2):
         """
