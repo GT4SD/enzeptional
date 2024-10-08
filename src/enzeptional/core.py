@@ -303,7 +303,7 @@ class SequenceMutator:
         number_of_mutations: int,
         intervals: List[Tuple[int, int]],
         current_population: List[str],
-        all_mutated_sequences: List[str],
+        all_mutated_sequences: set[str],
     ) -> List[str]:
         """Generates a set of mutated sequences.
 
@@ -319,21 +319,29 @@ class SequenceMutator:
             A list of mutated sequences.
         """
         max_mutations = min(len(self.sequence), number_of_mutations)
-        current_population = [self.sequence]
+        mutated_sequences: set[str] = set()
+        attempts = 0
+        max_attempts = num_sequences * 10
 
-        mutated_sequences_set: List[str] = []
-        while len(mutated_sequences_set) < num_sequences:
+        while len(mutated_sequences) < num_sequences and attempts < max_attempts:
             for temp_sequence in current_population:
                 new_mutations = self.mutation_strategy.mutate(
                     temp_sequence, max_mutations, intervals
                 )
-                new_mutations = [
-                    i for i in new_mutations if i not in all_mutated_sequences
-                ]
-                mutated_sequences_set.extend(new_mutations)
-                if len(mutated_sequences_set) >= num_sequences:
+                for new_mutation in new_mutations:
+                    if (
+                        new_mutation not in all_mutated_sequences
+                        and new_mutation not in mutated_sequences
+                    ):
+                        mutated_sequences.add(new_mutation)
+                        all_mutated_sequences.add(new_mutation)
+                        if len(mutated_sequences) >= num_sequences:
+                            break
+                if len(mutated_sequences) >= num_sequences:
                     break
-        return random.sample(mutated_sequences_set, num_sequences)
+            attempts += 1
+
+        return list(mutated_sequences)
 
 
 class SequenceScorer:
@@ -397,7 +405,7 @@ class SequenceScorer:
         else:
             score = self.scorer.predict_proba(combined_embedding)[0][1]
 
-        return {"sequence": sequence, "score": score}
+        return {"sequence": sequence, "score": round(score, 3)}
 
     def score_batch(
         self,
@@ -434,7 +442,7 @@ class SequenceScorer:
                 score = self.scorer.predict(xgb.DMatrix(combined_embedding))[0]
             else:
                 score = self.scorer.predict_proba(combined_embedding)[0][1]
-            output.append({"sequence": sequences[position], "score": score})
+            output.append({"sequence": sequences[position], "score": round(score, 3)})
 
         return output
 
@@ -515,6 +523,8 @@ class EnzymeOptimizer:
                 self.intervals, minimum_interval_length, len(sequence)
             )
 
+        self.all_mutated_sequences = set([self.sequence])
+
     def optimize(
         self,
         num_iterations: int,
@@ -522,24 +532,17 @@ class EnzymeOptimizer:
         num_mutations: int,
         time_budget: Optional[int] = 360,
     ):
-        """Runs the optimization process over a specified number
-        of iterations.
+        """Runs the optimization process over a specified number of iterations.
 
         Args:
-            num_iterations: Number of iterations to run
-            the optimization.
-            num_sequences: Number of sequences to generate
-            per iteration.
+            num_iterations: Number of iterations to run the optimization.
+            num_sequences: Number of sequences to generate per iteration.
             num_mutations: Max number of mutations to apply.
-            time_budget (Optional[int]): Time budget for
-            optimizer (in seconds). Defaults to 360.
+            time_budget (Optional[int]): Time budget for optimizer (in seconds). Defaults to 360.
 
         Returns:
-            A tuple containing the list of all sequences and
-            iteration information.
+            A tuple containing the list of all sequences and iteration information.
         """
-
-        iteration_info = {}
         scored_original_sequence = self.scorer.score(
             self.sequence,
             self.substrate_embedding,
@@ -547,58 +550,64 @@ class EnzymeOptimizer:
             self.concat_order,
         )
         current_best_score = scored_original_sequence["score"]
-        all_mutated_sequences: List[str] = [scored_original_sequence["sequence"]]
-        all_scored_sequences: List[Dict[str, Any]] = []
+        all_scored_sequences: List[Dict[str, Any]] = [scored_original_sequence]
 
         for iteration in range(num_iterations):
             start_time = time.time()
-            current_population = [self.sequence]
-            while len(current_population) < num_sequences:
+            current_population = set([self.sequence])
+
+            attempts = 0
+            max_attempts = num_sequences * 5
+            while len(current_population) < num_sequences and attempts < max_attempts:
                 new_mutants = self.mutator.mutate_sequences(
-                    self.batch_size,
+                    min(self.batch_size, num_sequences - len(current_population)),
                     num_mutations,
                     self.intervals,
-                    current_population,
-                    all_mutated_sequences,
+                    list(current_population),
+                    self.all_mutated_sequences,
                 )
-                current_population.extend(new_mutants)
+                current_population.update(new_mutants)
+                attempts += 1
+                if len(new_mutants) == 0:
+                    break
 
-            current_population = random.sample(current_population, k=num_sequences)
+            current_population.remove(self.sequence)
+            filtered_current_population = list(current_population)[:num_sequences]
+
             scored_sequences = self.scorer.score_batch(
-                current_population,
+                filtered_current_population,
                 self.substrate_embedding,
                 self.product_embedding,
                 self.concat_order,
             )
-            all_mutated_sequences.extend(current_population)
             all_scored_sequences.extend(scored_sequences)
 
             selected_sequences = self.selection_generator.selection(
                 [seq for seq in scored_sequences if seq["score"] > current_best_score],
                 self.selection_ratio,
             )
+
             if self.perform_crossover and len(selected_sequences) > 1:
                 offspring_sequences = self._perform_crossover(selected_sequences)
-                current_population.extend(offspring_sequences)
+                filtered_current_population.extend(offspring_sequences)
+                filtered_current_population = list(set(filtered_current_population))
+                filtered_current_population = random.sample(
+                    filtered_current_population,
+                    k=min(len(filtered_current_population), num_sequences),
+                )
 
-            current_population = random.sample(current_population, k=num_sequences)
-            higher_scoring_sequences = sum(
-                1 for seq in scored_sequences if seq["score"] > current_best_score
-            )
             current_best_score = max(
                 current_best_score, max(seq["score"] for seq in scored_sequences)
             )
 
             elapsed_time = time.time() - start_time
-            iteration_info[iteration + 1] = {
-                "Iteration": iteration + 1,
-                "best_score": current_best_score,
-                "higher_scoring_sequences": higher_scoring_sequences,
-                "elapsed_time": elapsed_time,
-            }
+
             logger.info(
-                f"Iteration {iteration + 1}: Best Score: {current_best_score}, Higher Scoring Sequences: {higher_scoring_sequences}, Time: {elapsed_time} seconds, Population length: {len(current_population)}"
+                f"Iteration {iteration + 1}: Best Score: {current_best_score}, "
+                f"Time: {elapsed_time:.2f} seconds, "
+                f"Population length: {len(current_population)}"
             )
+
             if time_budget and elapsed_time > time_budget:
                 logger.warning(f"Used all the given time budget of {time_budget}s")
                 break
@@ -606,7 +615,7 @@ class EnzymeOptimizer:
         all_scored_sequences = sorted(
             all_scored_sequences, key=lambda x: x["score"], reverse=True
         )
-        return all_scored_sequences, iteration_info
+        return all_scored_sequences
 
     def _perform_crossover(self, selected_sequences: List[Dict[str, Any]]) -> List[str]:
         offspring_sequences = []

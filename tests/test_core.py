@@ -126,7 +126,7 @@ def test_optimize():
     num_mutations = 5
     time_budget = 50000
 
-    optimized_sequences, iteration_info = optimizer.optimize(
+    optimized_sequences = optimizer.optimize(
         num_iterations=num_iterations,
         num_sequences=num_sequences,
         num_mutations=num_mutations,
