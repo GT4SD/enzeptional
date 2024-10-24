@@ -22,7 +22,7 @@
 # SOFTWARE.
 #
 
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 
 """Enzeptional - Enzyme Optimization for Biocatalysis.
 
